@@ -1,9 +1,9 @@
 # 🔒 MAT247 - CTF Challenge Writeup
 
-**Challenge**: MAT247 
-**Category**: Crypto 
-**Status**: ✅ Solved  
-**Flag**: `uoftctf{jus7_4_s1mple_tr4nslation_t0_GF(p^12)}`
+**Challenge**: MAT247  
+**Category**: Crypto  
+**Status**: ✅ Solved   
+**Flag**: `uoftctf{jus7_4_s1mple_tr4nslation_t0_GF(p^12)}` 
 
 
 # MAT247
