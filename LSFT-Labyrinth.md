@@ -1,4 +1,4 @@
-# UofT LFSR Labyrinth - UofTCTF 2025
+# UofT LFSR Labyrinth - Writeup
 
 **Ctf** | **Crypto** | **LFSR** | **Z3**
 
