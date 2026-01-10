@@ -57,6 +57,109 @@ The bit difference confirmed that one matrix was Random (Bit 0) but previously g
 
 Putting it all together, we decoded the binary string.
 
+## Here is the complete solution script:
+
+```python
+import sys
+import re
+
+# Parameters
+p = 202184226278391025014930169562408816719
+
+def mat_mul(A, B, p):
+    C = [[0]*12 for _ in range(12)]
+    B_t = list(zip(*B))
+    for i in range(12):
+        row = A[i]
+        for j in range(12):
+            col = B_t[j]
+            s = 0
+            for k in range(12):
+                s += row[k] * col[k]
+            C[i][j] = s % p
+    return C
+
+def identity(n):
+    I = [[0]*n for _ in range(n)]
+    for i in range(n): I[i][i] = 1
+    return I
+
+def mat_pow(A, exp, p):
+    res = identity(12)
+    base = A
+    while exp > 0:
+        if exp % 2 == 1:
+            res = mat_mul(res, base, p)
+        base = mat_mul(base, base, p)
+        exp //= 2
+    return res
+
+def parse_output(filename):
+    with open(filename, 'r') as f:
+        try:
+            content = f.read()
+        except:
+             # Fallback encoding
+             with open(filename, 'r', encoding='utf-16') as f2:
+                 content = f2.read()
+
+    nums = [int(x) for x in re.findall(r'\d+', content)]
+    matrices = []
+    for i in range(0, len(nums), 144):
+        chunk = nums[i:i+144]
+        if len(chunk) < 144: break
+        mat = []
+        for r in range(12):
+            mat.append(chunk[r*12 : (r+1)*12])
+        matrices.append(mat)
+    return matrices
+
+# Distinguishers: Small prime factors of p^12 - 1
+# Identified via factorization and verification that A^(N/q) == I
+distinguishers = [2, 3, 17, 26119]
+
+N = pow(p, 12) - 1
+I = identity(12)
+
+matrices = parse_output("output.txt")
+bits = ""
+
+print(f"Processing {len(matrices)} matrices...")
+for idx, M in enumerate(matrices):
+    is_power = True
+    for q in distinguishers:
+        exp = N // q
+        M_check = mat_pow(M, exp, p)
+        
+        # Check if result is Identity
+        is_pos_identity = True
+        for i in range(12):
+            for j in range(12):
+                if M_check[i][j] != I[i][j]:
+                    is_pos_identity = False; break
+            if not is_pos_identity: break
+        
+        if not is_pos_identity:
+            is_power = False
+            break
+    
+    bit = '1' if is_power else '0'
+    bits += bit
+
+print(f"Recovered {len(bits)} bits.")
+
+# Decode bits to flag
+flag = ""
+try:
+    for i in range(0, len(bits), 8):
+        byte = bits[i:i+8]
+        val = int(byte, 2)
+        flag += chr(val)
+    print(f"Flag: {flag}")
+except Exception as e:
+    print(f"Decoding error: {e}")
+```
+
 ```bash
 $ python3 solve.py
 ...
