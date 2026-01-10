@@ -1,4 +1,9 @@
-# Gambler's Fallacy - Writeup
+# 🔒 Gambler's Fallacy - CTF Challenge Writeup
+
+**Challenge**: Gambler's Fallacy 
+**Category**: Crypto / exploit
+**Status**: ✅ Solved  
+**Flag**: `uoftctf{ez_m3rs3nne_untwisting!!}`
 
 Here I'll write about the **Gambler's Fallacy** challenge, which involves exploiting a Pseudo-Random Number Generator (PRNG) state leak to predict the future and win a "zillion dollars".
 
@@ -101,4 +106,4 @@ def solve():
 
 This challenge demonstrates why you should never use a non-cryptographic PRNG (like Mersenne Twister) for anything involving money or secrets, especially if you expose its outputs. By simply watching the "random" numbers for a while, we could predict the future perfectly.
 
-**Flag:** `uoftctf{ez_m3rs3nne_untwisting!!}`
+**Flag:** 🔓 `uoftctf{ez_m3rs3nne_untwisting!!}`
