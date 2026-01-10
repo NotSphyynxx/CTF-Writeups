@@ -88,7 +88,7 @@ Running the decryption script on the extracted packets yielded 5 image files. We
 **File**: `HNderw.png`  
 This image contained the flag explicitly written in the visual content.
 
-![Flag Image](extracted_files/decrypted/HNderw.png)
+<img width="956" height="679" alt="HNderw" src="https://github.com/user-attachments/assets/8f3eee96-a9e1-4722-ae3d-d061a0f5289a" />
 
 (Other recovered images were standard memes or irrelevant photos)
 
