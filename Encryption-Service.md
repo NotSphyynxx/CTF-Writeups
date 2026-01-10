@@ -3,7 +3,7 @@
 **Challenge**: Encryption Service   
 **Category**: Crypto / Misc   
 **Status**: ✅ Solved   
-**Flag**: `uoftctf{b4by_w1r3sh4rk_an4lys1s}`  🔓
+**Flag**: `uoftctf{x4rgs_d03sn7_run_in_0n3_pr0c3ss}`  🔓
 
 
 ## Overview 
