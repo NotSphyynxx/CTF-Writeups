@@ -1,9 +1,10 @@
 # 🔒 Gambler's Fallacy - CTF Challenge Writeup
 
-**Challenge**: Gambler's Fallacy 
-**Category**: Crypto / exploit
+**Challenge**: Gambler's Fallacy  
+**Category**: Crypto / exploit  
 **Status**: ✅ Solved  
 **Flag**: `uoftctf{ez_m3rs3nne_untwisting!!}`
+
 
 Here I'll write about the **Gambler's Fallacy** challenge, which involves exploiting a Pseudo-Random Number Generator (PRNG) state leak to predict the future and win a "zillion dollars".
 
