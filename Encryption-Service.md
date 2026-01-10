@@ -1,6 +1,12 @@
-# Encryption Service  
+# 🔒 Encryption Service - CTF Challenge Writeup  
 
-## Overview
+**Challenge**: Encryption Service   
+**Category**: Crypto / Misc   
+**Status**: ✅ Solved   
+**Flag**: `uoftctf{b4by_w1r3sh4rk_an4lys1s}`  🔓
+
+
+## Overview 
 The challenge provides a Python script `enc.py`, a shell script `run.sh`, and a Dockerfile.
 The service takes user input, appends the flag to it, and then pipes the whole content to an encryption script using `xargs`:
 
