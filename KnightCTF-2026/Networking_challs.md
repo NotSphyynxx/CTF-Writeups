@@ -77,7 +77,6 @@ The flag requires the number of open ports found.
 
 | Property | Value |
 |----------|-------|
-| **Points** | 480 |
 | **Flag Format** | `KCTF{vendor_name}` |
 
 ## Challenge Description
@@ -118,3 +117,4 @@ The OUI (Organizationally Unique Identifier) `88:bd:09` corresponds to **Netis T
 The vendor is Netis Technology.
 
 **Flag:** `KCTF{Netis_Technology}`
+
